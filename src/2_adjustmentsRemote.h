@@ -23,7 +23,7 @@
 // PWM mode active, if SBUS, IBUS, SUMD and PPM are disabled (// in front of #define)
 
 // SBUS communication (RX header, 13 channels. This is my preferred communication protocol)--------
-#define SBUS_COMMUNICATION // control signals are coming in via the SBUS interface (comment it out for classic PWM RC signals)
+//#define SBUS_COMMUNICATION // control signals are coming in via the SBUS interface (comment it out for classic PWM RC signals)
 // NOTE: "boolean sbusInverted = true / false" was moved to the remote configuration profiles, so you don't have to change it
 uint32_t sbusBaud = 100000; // Standard is 100000. Try to lower it, if your channels are coming in unstable. Working range is about 96000 - 104000.
 #define EMBEDDED_SBUS // Embedded SBUS code is used instead of SBUS library, if defined (recommended)
@@ -37,6 +37,9 @@ uint16_t sbusFailsafeTimeout = 100; // Failsafe is triggered after this timeout 
 
 // PPM communication (RX header, 8 channels, working fine, but channel signals are a bit jittery) --------
 //#define PPM_COMMUNICATION // control signals are coming in via the PPM interface (comment it out for classic PWM RC signals)
+
+// hardware buttons
+#define HW_COMMUNICATION
 
 // CHANNEL LINEARITY SETTINGS  ****************************************************************************************************************
 

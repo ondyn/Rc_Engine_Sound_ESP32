@@ -57,8 +57,8 @@ volatile int dieselKnockAdaptiveVolumePercentage = 50; // Adjust the Diesel knoc
 //#include "sounds/Tatra813knock4.h" // Tatra 813 8x8 air cooled V12 Diesel
 
 // Adjust the additional turbo sound (set "turboVolumePercentage" to "0", if you don't want it) --------
-volatile int turboVolumePercentage = 0; // Adjust the turbo volume (usually = 70%)
-volatile int turboIdleVolumePercentage = 0; // the turbo volume will be engine rpm dependent (usually = 10%)
+volatile int turboVolumePercentage = 70; // Adjust the turbo volume (usually = 70%)
+volatile int turboIdleVolumePercentage = 10; // the turbo volume will be engine rpm dependent (usually = 10%)
 #include "sounds/TurboWhistle.h" // Turbo sound, playing in parallel with engine sound!
 
 // Adjust the additional supercharger sound (set "chargerVolumePercentage" to "0", if you don't want it) --------
@@ -99,10 +99,10 @@ volatile int hornVolumePercentage = 180; // Adjust the horn volume (usually = 10
 
 // Choose the siren / additional horn sound (uncomment the one you want) --------
 volatile int sirenVolumePercentage = 100; // Adjust the siren volume (usually = 100%)
-#include "sounds/sirenDummy.h" // If you don't want siren sound
+//#include "sounds/sirenDummy.h" // If you don't want siren sound
 //#include "sounds/UsPoliceSiren.h" // US Police siren
 //#include "sounds/FireTruckAirSiren.h" // US fire truck air siren (King Hauler)
-//#include "sounds/FeuerwehrMartinshorn.h" // European Feuerwehr Martinshorn
+#include "sounds/FeuerwehrMartinshorn.h" // European Feuerwehr Martinshorn
 //#include "sounds/IrishFireEngineHorn.h" // Irish fire truck horn
 //#include "sounds/siren01norskere22.h" // Norwegian siren
 //#include "sounds/PostAutoHorn.h" // The typical Swiss post bus horn
@@ -136,7 +136,7 @@ volatile int sound1VolumePercentage = 100; // Adjust the sound1 volume (usually 
 #include "sounds/door.h" // opening and closing the door
 
 // Choose the reversing beep sound --------
-volatile int reversingVolumePercentage = 0; // Adjust the reversing sound volume (usually = 70%)
+volatile int reversingVolumePercentage = 70; // Adjust the reversing sound volume (usually = 70%)
 #include "sounds/TruckReversingBeep.h" // 1000Hz peep sound
 
 // Choose the indicator / turn signal options --------
@@ -146,7 +146,7 @@ const boolean INDICATOR_DIR = true; // adjust indicator direction with true or f
 #include "sounds/Indicator.h" // "Tick-Tack" sound
 
 // Choose the trailer couplig & uncoupling sounds (uncomment the ones you want) --------
-#define COUPLING_SOUND // uncomment this, if you want to use the trailer coupling & uncoupling sounds
+//#define COUPLING_SOUND // uncomment this, if you want to use the trailer coupling & uncoupling sounds
 volatile int couplingVolumePercentage = 100; // Adjust the volume (usually = 100%)
 #ifdef COUPLING_SOUND
 #include "sounds/coupling.h" // coupling
@@ -167,7 +167,7 @@ const uint8_t escBrakeSteps = 30; // determines, how fast the ESC is able to bra
 const uint8_t escAccelerationSteps = 3; // determines, how fast the ESC is able to accelerate (2 - 3, 3 for King Hauler)
 
 // Gearbox parameters (select number of automatic gears in curves.h)-----------------------------------------------------
-const boolean automatic = false; // false = linear rpm curve, true = automatic transmission with torque converter is simulated (use it, if you don't have a real shifting transmission)
+const boolean automatic = true; // false = linear rpm curve, true = automatic transmission with torque converter is simulated (use it, if you don't have a real shifting transmission)
 #define NumberOfAutomaticGears 3 // <<------- Select 3, 4 or 6 gears!
 const boolean doubleClutch = false; // do not activate it at the same time as automatic!
 const boolean shiftingAutoThrottle = true; // For Tamiya 3 speed tansmission, throttle is altered for synchronizing, if "true"
@@ -180,8 +180,8 @@ uint16_t clutchEngagingPoint = 80; // CEP. The "clutch" is engaging above this p
 uint32_t MAX_RPM_PERCENTAGE = 300; // NOTE! Was called TOP_SPEED_MULTIPLIER (TSM) in earlier versions and was a multiplier instead of a percentage!
 
 // Engine mass simulation
-const int8_t acc = 2; // Acceleration step (2) 1 = slow for locomotive engine, 9 = fast for trophy truck
-const int8_t dec = 1; // Deceleration step (1) 1 = slow for locomotive engine, 5 = fast for trophy truck
+const int8_t acc = 9; // Acceleration step (2) 1 = slow for locomotive engine, 9 = fast for trophy truck
+const int8_t dec = 5; // Deceleration step (1) 1 = slow for locomotive engine, 5 = fast for trophy truck
 
 // Vehicle type ----------------------------------------------------------------------------------------------------
 // #define TRACKED_MODE // For Tanks, diggers, excavators etc. which use dual throttle input on CH2 and CH3

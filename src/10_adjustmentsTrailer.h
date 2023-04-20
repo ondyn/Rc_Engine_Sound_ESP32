@@ -18,7 +18,7 @@ uint8_t broadcastAddress1[] = {0xAC, 0x67, 0xB2, 0x37, 0xF3, 0x7C}; // SCANIA S1
 //uint8_t broadcastAddress1[] = {0xA0, 0x20, 0xA6, 0x10, 0x46, 0x3B}; // D1 Mini ESP8266
 
 // Trailer 2
-#define TRAILER_2 // Uncomment this, if you want to use a 2nd trailer
+//#define TRAILER_2 // Uncomment this, if you want to use a 2nd trailer
 uint8_t broadcastAddress2[] = {0x4C, 0xEB, 0xD6, 0x7C, 0x02, 0x74}; // Bruder Low Loader
 //uint8_t broadcastAddress2[] = {0x34, 0x86, 0x5D, 0x3A, 0xF1, 0x5C}; //SCANIA S2
 //uint8_t broadcastAddress2[] = {0xA0, 0x20, 0xA6, 0x10, 0x46, 0x3B}; // D1 Mini ESP8266

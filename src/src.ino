@@ -22,6 +22,9 @@ char codeVersion[] = "9.11.0"; // Software revision.
 
 // This stuff is required for Visual Studio Code IDE, if .ino is renamed into .cpp!
 #include <Arduino.h>
+#include <AceButton.h>
+using namespace ace_button;
+
 void Task1code(void *parameters);
 void readSbusCommands();
 void readIbusCommands();
@@ -32,6 +35,8 @@ void processRawChannels();
 void failsafeRcSignals();
 void channelZero();
 float batteryVolts();
+void handleButtonEvent(AceButton*, uint8_t, uint8_t);
+void initButtons();
 
 //
 // =======================================================================================================
@@ -100,6 +105,7 @@ float batteryVolts();
 #include <ESP32AnalogRead.h>// https://github.com/madhephaestus/ESP32AnalogRead <<------- required for battery voltage measurement
 #include <Tone32.h>         // https://github.com/lbernstone/Tone32      <<------- required for battery cell detection beeps
 
+
 // Additional headers (included)
 #include "src/curves.h"    // Nonlinear throttle curve arrays
 #include "src/helper.h"    // Various stuff
@@ -165,6 +171,40 @@ float batteryVolts();
 const uint8_t PWM_CHANNELS[PWM_CHANNELS_NUM] = { 1, 2, 3, 4, 5, 6}; // Channel numbers
 const uint8_t PWM_PINS[PWM_CHANNELS_NUM] = { 13, 12, 14, 27, 35, 34 }; // Input pin numbers (pin 34 & 35 only usable as inputs!)
 
+// HW buttons input pins, active when HW_COMMUNICATION is enabled
+// Number of buttons
+const uint8_t NUM_BUTTONS = 6;
+
+// Button pins definition.
+#define BTN_HORN 0
+#define BTN_L_INDICATOR 1
+#define BTN_R_INDICATOR 2
+#define BTN_LIGHTS 3
+#define BTN_HIGH_BEAM 4
+#define BTN_START_STOP 5
+
+const uint8_t buttonDefinition[NUM_BUTTONS] = { 13, 15, 12, 27, 33, 32};
+
+// Define the buttons in an array using the default constructor
+AceButton buttons[NUM_BUTTONS];
+
+// speed and direction detector - code wheel
+#define pinO1 34
+#define pinO2 35
+
+uint16_t speedImp = 0;
+bool dir = LOW;
+int stavO1 = LOW;
+int stavO2 = LOW;
+
+unsigned long lastSpeedReading = 0;
+int speedCheckPeriod = 200;
+
+void setupSpeedDetector();
+void readCodeWheelO1();
+void readCodeWheelO2();
+void calculateSpeed();
+
 // Output pins -----
 #define ESC_OUT_PIN 33 // connect crawler type ESC here. Not supported in TRACKED_MODE -----
 
@@ -182,7 +222,7 @@ const uint8_t PWM_PINS[PWM_CHANNELS_NUM] = { 13, 12, 14, 27, 35, 34 }; // Input 
 #define HEADLIGHT_PIN 3 // 3 = "RX0" pin, (1 = "TX0" is not usable) white headllights
 #endif
 
-#define TAILLIGHT_PIN 15 // Red tail- & brake-lights (combined)
+#define TAILLIGHT_PIN 22 // Red tail- & brake-lights (combined)
 #define INDICATOR_LEFT_PIN 2 // Orange left indicator (turn signal) light
 #define INDICATOR_RIGHT_PIN 4 // Orange right indicator (turn signal) light
 #define FOGLIGHT_PIN 16 // (16 = RX2) Fog lights
@@ -211,19 +251,19 @@ const uint8_t PWM_PINS[PWM_CHANNELS_NUM] = { 13, 12, 14, 27, 35, 34 }; // Input 
 
 // Objects *************************************************************************************
 // Status LED objects (also used for PWM shaker motor and ESC control) -----
-statusLED headLight(false); // "false" = output not inversed
-statusLED tailLight(false);
-statusLED indicatorL(false);
-statusLED indicatorR(false);
-statusLED fogLight(false);
-statusLED reversingLight(false);
-statusLED roofLight(false);
-statusLED sideLight(false);
-statusLED beaconLight1(false);
-statusLED beaconLight2(false);
-statusLED shakerMotor(false);
-statusLED cabLight(false);
-statusLED brakeLight(false);
+statusLED headLight(true); // "false" = output not inversed
+statusLED tailLight(true);
+statusLED indicatorL(true);
+statusLED indicatorR(true);
+statusLED fogLight(true);
+statusLED reversingLight(true);
+statusLED roofLight(true);
+statusLED sideLight(true);
+statusLED beaconLight1(true);
+statusLED beaconLight2(true);
+statusLED shakerMotor(true);
+statusLED cabLight(true);
+statusLED brakeLight(true);
 
 // rcTrigger objects -----
 // Analog or 3 position switches (short / long pressed time)
@@ -1475,6 +1515,36 @@ void setupBattery() {
   Serial.printf("-------------------------------------\n");
 }
 
+
+//
+// =======================================================================================================
+// HW BUTTONS SETUP
+// =======================================================================================================
+//
+void initButtons() {
+  for (uint8_t i = 0; i < NUM_BUTTONS; i++) {
+    // Button uses the built-in pull up register.
+    pinMode(buttonDefinition[i], INPUT_PULLUP); 
+
+    // initialize the corresponding AceButton
+    buttons[i].init(buttonDefinition[i], HIGH, i);
+  }
+
+  // Configure the ButtonConfig with the event handler, and enable all higher
+  // level events.
+  ButtonConfig* buttonConfig = ButtonConfig::getSystemButtonConfig();
+  buttonConfig->setEventHandler(handleButtonEvent);
+  buttonConfig->setLongPressDelay(2000);
+  //buttonConfig->setFeature(ButtonConfig::kFeatureClick);
+  //buttonConfig->setFeature(ButtonConfig::kFeatureDoubleClick);
+  buttonConfig->setFeature(ButtonConfig::kFeatureLongPress);
+  //buttonConfig->setFeature(ButtonConfig::kFeatureRepeatPress);
+  buttonConfig->setFeature(ButtonConfig::kFeatureSuppressAfterLongPress);
+
+  // ButtonConfig* config = button.getButtonConfig();
+  // config->clearFeature(ButtonConfig::kFeatureSuppressAll);
+}
+
 //
 // =======================================================================================================
 // MAIN ARDUINO SETUP (1x during startup)
@@ -1571,12 +1641,15 @@ void setup() {
   beaconLight2.begin(BEACON_LIGHT2_PIN, 10, 20000); // Timer 10, 20kHz
 #endif
 
+
 #if defined THIRD_BRAKELIGHT and not defined RZ7886_DRIVER_MODE
   brakeLight.begin(BRAKELIGHT_PIN, 11, 20000); // Timer 11, 20kHz
 #endif
+#ifndef HW_COMMUNICATION
   cabLight.begin(CABLIGHT_PIN, 12, 20000); // Timer 12, 20kHz
+#endif
 
-#if not defined SPI_DASHBOARD
+#if not defined SPI_DASHBOARD and not defined HW_COMMUNICATION
   shakerMotor.begin(SHAKER_MOTOR_PIN, 13, 20000); // Timer 13, 20kHz
 #endif
 
@@ -1620,6 +1693,9 @@ void setup() {
   sumd.begin(COMMAND_RX); // begin SUMD communication with compatible receivers
   setupMcpwm(); // mcpwm servo output setup
 
+#elif defined HW_COMMUNICATION // hw buttons
+  initButtons();
+  setupSpeedDetector();
 #else
   // PWM ----
 #define PWM_COMMUNICATION
@@ -1716,35 +1792,41 @@ void setup() {
 
 #elif defined PPM_COMMUNICATION
   readPpmCommands();
+#elif defined HW_COMMUNICATION
+  for (uint8_t i = 0; i < NUM_BUTTONS; i++) {
+    buttons[i].check();
+  }
+  Serial.printf("... HW buttons communication mode active.\n");
 #else
   // measure PWM RC signals mark space ratio
   readPwmSignals();
   Serial.printf("... PWM communication mode active.\n");
 #endif
   Serial.printf("-------------------------------------\n");
+  #ifndef HW_COMMUNICATION
+    // Calculate RC input signal ranges for all channels
+    for (uint8_t i = 1; i < PULSE_ARRAY_SIZE; i++) {
+      pulseZero[i] = 1500; // Always 1500. This is the center position. Auto centering is now done in "processRawChannels()"
 
-  // Calculate RC input signal ranges for all channels
-  for (uint8_t i = 1; i < PULSE_ARRAY_SIZE; i++) {
-    pulseZero[i] = 1500; // Always 1500. This is the center position. Auto centering is now done in "processRawChannels()"
+      // Input signals
+      pulseMaxNeutral[i] = pulseZero[i] + pulseNeutral;
+      pulseMinNeutral[i] = pulseZero[i] - pulseNeutral;
+      pulseMax[i] = pulseZero[i] + pulseSpan;
+      pulseMin[i] = pulseZero[i] - pulseSpan;
+      pulseMaxLimit[i] = pulseZero[i] + pulseLimit;
+      pulseMinLimit[i] = pulseZero[i] - pulseLimit;
+    }
 
-    // Input signals
-    pulseMaxNeutral[i] = pulseZero[i] + pulseNeutral;
-    pulseMinNeutral[i] = pulseZero[i] - pulseNeutral;
-    pulseMax[i] = pulseZero[i] + pulseSpan;
-    pulseMin[i] = pulseZero[i] - pulseSpan;
-    pulseMaxLimit[i] = pulseZero[i] + pulseLimit;
-    pulseMinLimit[i] = pulseZero[i] - pulseLimit;
-  }
+    // ESC output range calibration
+    escPulseMaxNeutral = pulseZero[3] + escTakeoffPunch; // Additional takeoff punch around zero
+    escPulseMinNeutral = pulseZero[3] - escTakeoffPunch;
 
-  // ESC output range calibration
-  escPulseMaxNeutral = pulseZero[3] + escTakeoffPunch; // Additional takeoff punch around zero
-  escPulseMinNeutral = pulseZero[3] - escTakeoffPunch;
+    escPulseMax = pulseZero[3] + escPulseSpan;
+    escPulseMin = pulseZero[3] - escPulseSpan + escReversePlus; // Additional power for ESC with slow reverse
 
-  escPulseMax = pulseZero[3] + escPulseSpan;
-  escPulseMin = pulseZero[3] - escPulseSpan + escReversePlus; // Additional power for ESC with slow reverse
-
-  // ESC setup
-  setupMcpwmESC(); // ESC now using mpcpwm
+    // ESC setup
+    setupMcpwmESC(); // ESC now using mpcpwm
+  #endif
 }
 
 //
@@ -1753,7 +1835,7 @@ void setup() {
 // =======================================================================================================
 //
 
-static unsigned long dacOffsetMicros;
+static unsigned long dacOffsetMicros; 
 boolean dacInit;
 
 void dacOffsetFade() {
@@ -1792,7 +1874,8 @@ void readPwmSignals() {
       // We want to have the pwmBuf variable for us alone,
       // so we don't want it getting stolen during the middle of a conversion.
       for (uint8_t i = 1; i < PWM_CHANNELS_NUM + 1; i++) {
-        if (pwmBuf[i] > 500 && pwmBuf[i] < 2500) pulseWidthRaw[i] = pwmBuf[i]; // Only take valid signals!
+        if (pwmBuf[i] > 500 && pwmBuf[i] < 2500)
+          pulseWidthRaw[i] = pwmBuf[i]; // Only take valid signals!
       }
 
       xSemaphoreGive( xPwmSemaphore ); // Now free or "Give" the semaphore for others.
@@ -2711,6 +2794,142 @@ void engineMassSimulation() {
 
 //
 // =======================================================================================================
+// The event handler for the hw buttons
+// =======================================================================================================
+//
+
+void handleButtonEvent(AceButton* button, uint8_t eventType, uint8_t buttonState) {
+
+  // Print out a message for all events.
+  // Serial.print(F("handleEvent(): eventType: "));
+  // Serial.print(eventType);
+  // Serial.print(F("; buttonState: "));
+  // Serial.println(buttonState);
+
+// #define BTN_HORN 13
+// #define BTN_L_INDICATOR 12
+// #define BTN_R_INDICATOR 14
+// #define BTN_LIGHTS 27
+// #define BTN_HIGH_BEAM 33
+// #define BTN_START_STOP 32
+  
+  uint8_t id = button->getId();
+  //uint8_t id = button->getPin();
+  Serial.print(id);
+  Serial.println(eventType);
+
+  switch (eventType) {
+    case AceButton::kEventLongPressed:
+      switch (id) {
+        case BTN_HORN:
+          if(sirenTrigger){
+            sirenTrigger = false;
+          } else{
+            sirenTrigger = true;
+            sirenLatch = true;
+          }
+          //hornTrigger = false;
+          break;
+        case BTN_L_INDICATOR:
+          //indicatorLon = false;
+          break;
+        case BTN_R_INDICATOR:
+          //indicatorRon = false;
+          break;
+        case BTN_START_STOP:
+          //engineOn = true;
+          break;
+        case BTN_LIGHTS:
+          if(blueLightTrigger){
+            blueLightTrigger = false;
+          }else{
+            blueLightTrigger = true;
+          }
+          break;
+      }
+      break;
+    case AceButton::kEventReleased:          
+      switch (id) {
+        case BTN_HORN:
+          hornTrigger = false;
+          break;
+        case BTN_L_INDICATOR:
+          indicatorLon = false;
+          break;
+        case BTN_R_INDICATOR:
+          indicatorRon = false;
+          break;
+        case BTN_START_STOP:
+          //engineOn = false;
+          break;
+        case BTN_LIGHTS:          
+          break;
+        case BTN_HIGH_BEAM:
+          //headLightsHighBeamOn = false;
+          break;
+      }
+      break;
+    case AceButton::kEventLongReleased:          
+      switch (id) {
+        case BTN_HORN:
+          hornTrigger = false;          
+          break;
+        case BTN_L_INDICATOR:
+          indicatorLon = false;
+          break;
+        case BTN_R_INDICATOR:
+          indicatorRon = false;
+          break;
+        case BTN_START_STOP:
+          //engineOn = false;
+          break;
+        case BTN_LIGHTS:          
+          break;
+      }
+      break;
+    case AceButton::kEventPressed:      
+      switch (id) {
+        case BTN_HORN:
+          hornTrigger = true;
+          hornLatch = true;
+          break;
+        case BTN_L_INDICATOR:
+          indicatorLon = true;
+          break;
+        case BTN_R_INDICATOR:
+          indicatorRon = true;
+          break;
+        case BTN_START_STOP:
+          if(engineState == RUNNING)
+            engineOn = false;
+          else
+            engineOn = true;
+          break;
+        case BTN_LIGHTS:
+            if(lightsOn){
+              lightsOn = false;      
+              // bool head, bool fog, bool roof, bool park
+              headLightsSub(false, false, false, false);
+              brakeLightsSub(0); // 0 brightness, if not braking
+            }else{
+              lightsOn = true;      
+              headLightsSub(true, false, false, false);
+              brakeLightsSub(rearlightDimmedBrightness); // 50 brightness, if not braking
+            }
+          break;
+        case BTN_HIGH_BEAM:
+          headLightsHighBeamOn = !headLightsHighBeamOn;
+          Serial.println(headLightsHighBeamOn);
+          lightsOn = true;      
+          headLightsSub(true, false, false, false);          
+          break;
+      }      
+      break;
+  }
+}
+
+//
+// =======================================================================================================
 // SWITCH ENGINE ON OR OFF (for automatic mode)
 // =======================================================================================================
 //
@@ -2754,7 +2973,7 @@ void engineOnOff() {
 
 uint8_t crankingDim;
 uint8_t dipDim;
-uint8_t xenonIgnitionFlash;
+uint8_t xenonIgnitionFlash = 0;
 static unsigned long xenonMillis;
 uint32_t indicatorFade = 300; // 300 is the fading time, simulating an incandescent bulb
 
@@ -2822,7 +3041,7 @@ void headLightsSub(bool head, bool fog, bool roof, bool park) {
 }
 
 // Main LED function --------------------------------------------------------------------------------------
-void led() {
+void  led() {
 
 #if defined LED_INDICATORS
   indicatorFade = 0; // No soft indicator on / off, if LED
@@ -2839,7 +3058,7 @@ void led() {
   if (engineStart) crankingDim = 50; else crankingDim = 0; // lights are dimmer while engine cranking
 #endif
 
-  if (headLightsFlasherOn || headLightsHighBeamOn) dipDim = 10; else dipDim = 170; // High / low beam and headlight flasher (SBUS CH5)
+  if (headLightsFlasherOn || headLightsHighBeamOn) dipDim = 5; else dipDim = 200; // High / low beam and headlight flasher (SBUS CH5)
 
   // Reversing light ----
   if ((engineRunning || engineStart) && escInReverse) reversingLight.pwm(reversingLightBrightness - crankingDim);
@@ -2953,7 +3172,7 @@ void led() {
   // Cabin lights ----
   if (!lightsOn) cabLight.pwm(255 - crankingDim);
   else cabLight.off();
-
+#elif defined HW_COMMUNICATION
 #else // manual lights mode ************************
   // Lights state machine
   switch (lightsState) {
@@ -4548,17 +4767,25 @@ void loop() {
 #elif defined PPM_COMMUNICATION
   readPpmCommands(); // PPM communication (pin 36)
   mcpwmOutput(); // PWM servo signal output
-
+#elif defined HW_COMMUNICATION
+  for (uint8_t i = 0; i < NUM_BUTTONS; i++) {
+    buttons[i].check();
+  }
+  calculateSpeed();
 #else
   // measure RC signals mark space ratio
   readPwmSignals();
 #endif
 
   // Horn triggering
-  triggerHorn();
+  #ifndef HW_COMMUNICATION
+    triggerHorn();
+  #endif
 
   // Indicator (turn signal) triggering
-  triggerIndicators();
+  #ifndef HW_COMMUNICATION
+    triggerIndicators();
+  #endif
 
   if ( xSemaphoreTake( xRpmSemaphore, portMAX_DELAY ) )
   {
@@ -4638,19 +4865,67 @@ void Task1code(void *pvParameters) {
 
     // LED control
     if (autoZeroDone) led();
+    #ifdef HW_COMMUNICATION
+      led();
+    #endif
 
-#if not defined SPI_DASHBOARD
+#if not defined SPI_DASHBOARD and not defined HW_COMMUNICATION
     // Shaker control
     shaker();
 #endif
 
+#ifndef HW_COMMUNICATION
     // Gearbox detection
     gearboxDetection();
-
     // ESC control & low discharge protection
     esc();
-
+#endif
     // measure loop time
     loopTime = loopDuration(); // for debug only
   }
+}
+
+void setupSpeedDetector() {
+  pinMode(pinO1, INPUT);
+  pinMode(pinO2, INPUT);
+
+  attachInterrupt(digitalPinToInterrupt(pinO1), readCodeWheelO1, FALLING);
+  attachInterrupt(digitalPinToInterrupt(pinO2), readCodeWheelO2, CHANGE);
+}
+
+void calculateSpeed() {
+  unsigned long now = millis();
+
+  if((now - lastSpeedReading) >= speedCheckPeriod) {
+      currentSpeed = speedImp * 10;
+      currentThrottle = speedImp * 10;
+      
+      // Serial.print("dir:");
+      // Serial.println(dir);
+      // Serial.print("speed: ");
+      // Serial.println(currentSpeed);
+      
+      lastSpeedReading = now;      
+      speedImp = 0;      
+  }
+}
+
+void readCodeWheelO1() {
+  // načtení stavu pinu O1
+  stavO1 = digitalRead(pinO1);
+  // kontrola stavu oproti předchozímu měření
+  speedImp++;
+  if (stavO2 == HIGH) {    
+    escInReverse = true;
+    dir = LOW;
+  }
+  else {
+    dir = HIGH;
+    escInReverse = false;
+  }
+}
+
+void readCodeWheelO2() {
+  // načtení stavu pinu O2 do proměnné  
+  stavO2 = digitalRead(pinO2);
 }

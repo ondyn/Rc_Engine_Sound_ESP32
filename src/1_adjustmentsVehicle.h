@@ -21,7 +21,7 @@
 
 // EU trucks --------
 //#include "vehicles/Tatra813.h" // Tatra 813 8x8 V12 Diesel military truck (old version for comparison, don't use it)
-//#include "vehicles/Tatra813new.h" // Tatra 813 8x8 V12 Diesel military truck
+#include "vehicles/Tatra813new.h" // Tatra 813 8x8 V12 Diesel military truck
 //#include "vehicles/UnimogU1000.h" // Umimog U 1000 with turbocharged R6 Diesel incl. Feuerwehr "Martinshorn" siren
 //#include "vehicles/MercedesActros1836.h" // Mercedes Actros 1863 or 3363 truck with R6 Diesel
 //#include "vehicles/MercedesActrosV6.h" // Mercedes Actros V6 Race Truck incl. tire squealing
@@ -87,7 +87,7 @@
 //#include "vehicles/DefenderV8OpenPipe.h" // Land Rover Defender 90 V8 manual, open pipes (optimised for smaller speakers)
 //#include "vehicles/DefenderV8CrawlerAutomatic.h" // Land Rover Defender 90 V8 automatic crawler
 //#include "vehicles/DefenderTd5.h" // Land Rover Defender 90 Td5 R5 Diesel
-#include "vehicles/Defender62LS3.h" // Land Rover Defender "Spectre" with Chevy LS3 V8
+//#include "vehicles/Defender62LS3.h" // Land Rover Defender "Spectre" with Chevy LS3 V8
 
 // Asian SUV --------
 //#include "vehicles/LandcruiserFJ40.h" // Landcruiser Fj40 with inline 6 petrol engine
