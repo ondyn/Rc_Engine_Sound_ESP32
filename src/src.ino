@@ -173,7 +173,7 @@ const uint8_t PWM_PINS[PWM_CHANNELS_NUM] = { 13, 12, 14, 27, 35, 34 }; // Input 
 
 // HW buttons input pins, active when HW_COMMUNICATION is enabled
 // Number of buttons
-const uint8_t NUM_BUTTONS = 6;
+const uint8_t NUM_BUTTONS = 8;
 
 // Button pins definition.
 #define BTN_HORN 0
@@ -182,8 +182,10 @@ const uint8_t NUM_BUTTONS = 6;
 #define BTN_LIGHTS 3
 #define BTN_HIGH_BEAM 4
 #define BTN_START_STOP 5
+#define BTN_HAZARD 6
+#define BTN_SIRENE 7
 
-const uint8_t buttonDefinition[NUM_BUTTONS] = { 13, 15, 12, 27, 33, 32};
+const uint8_t buttonDefinition[NUM_BUTTONS] = { 13, 15, 12, 27, 33, 32, 2, 4};
 
 // Define the buttons in an array using the default constructor
 AceButton buttons[NUM_BUTTONS];
@@ -223,10 +225,10 @@ void calculateSpeed();
 #endif
 
 #define TAILLIGHT_PIN 22 // Red tail- & brake-lights (combined)
-#define INDICATOR_LEFT_PIN 2 // Orange left indicator (turn signal) light
-#define INDICATOR_RIGHT_PIN 4 // Orange right indicator (turn signal) light
+#define INDICATOR_LEFT_PIN 5 // Orange left indicator (turn signal) light
+#define INDICATOR_RIGHT_PIN 18 // Orange right indicator (turn signal) light
 #define FOGLIGHT_PIN 16 // (16 = RX2) Fog lights
-#define REVERSING_LIGHT_PIN 17 // (TX2) White reversing light
+#define REVERSING_LIGHT_PIN 23 // (TX2) White reversing light
 #define ROOFLIGHT_PIN 5 // Roof lights (high beam, if "define SEPARATE_FULL_BEAM")
 #define SIDELIGHT_PIN 18 // Side lights (connect roof ligthts here, if "define SEPARATE_FULL_BEAM")
 #define BEACON_LIGHT2_PIN 19 // Blue beacons light
@@ -255,10 +257,10 @@ statusLED headLight(true); // "false" = output not inversed
 statusLED tailLight(true);
 statusLED indicatorL(true);
 statusLED indicatorR(true);
-statusLED fogLight(true);
+//statusLED fogLight(true);
 statusLED reversingLight(true);
-statusLED roofLight(true);
-statusLED sideLight(true);
+//statusLED roofLight(true);
+//statusLED sideLight(true);
 statusLED beaconLight1(true);
 statusLED beaconLight2(true);
 statusLED shakerMotor(true);
@@ -1631,12 +1633,12 @@ void setup() {
   tailLight.begin(TAILLIGHT_PIN, 2, 20000); // Timer 2, 20kHz
   indicatorL.begin(INDICATOR_LEFT_PIN, 3, 20000); // Timer 3, 20kHz
   indicatorR.begin(INDICATOR_RIGHT_PIN, 4, 20000); // Timer 4, 20kHz
-  fogLight.begin(FOGLIGHT_PIN, 5, 20000); // Timer 5, 20kHz
+  //fogLight.begin(FOGLIGHT_PIN, 5, 20000); // Timer 5, 20kHz
   reversingLight.begin(REVERSING_LIGHT_PIN, 6, 20000); // Timer 6, 20kHz
-  roofLight.begin(ROOFLIGHT_PIN, 7, 20000); // Timer 7, 20kHz
+  //roofLight.begin(ROOFLIGHT_PIN, 7, 20000); // Timer 7, 20kHz
 
 #if not defined SPI_DASHBOARD
-  sideLight.begin(SIDELIGHT_PIN, 8, 20000); // Timer 8, 20kHz
+  //sideLight.begin(SIDELIGHT_PIN, 8, 20000); // Timer 8, 20kHz
   beaconLight1.begin(BEACON_LIGHT1_PIN, 9, 20000); // Timer 9, 20kHz
   beaconLight2.begin(BEACON_LIGHT2_PIN, 10, 20000); // Timer 10, 20kHz
 #endif
@@ -2822,12 +2824,6 @@ void handleButtonEvent(AceButton* button, uint8_t eventType, uint8_t buttonState
     case AceButton::kEventLongPressed:
       switch (id) {
         case BTN_HORN:
-          if(sirenTrigger){
-            sirenTrigger = false;
-          } else{
-            sirenTrigger = true;
-            sirenLatch = true;
-          }
           //hornTrigger = false;
           break;
         case BTN_L_INDICATOR:
@@ -2839,19 +2835,15 @@ void handleButtonEvent(AceButton* button, uint8_t eventType, uint8_t buttonState
         case BTN_START_STOP:
           //engineOn = true;
           break;
-        case BTN_LIGHTS:
-          if(blueLightTrigger){
-            blueLightTrigger = false;
-          }else{
-            blueLightTrigger = true;
-          }
+        case BTN_LIGHTS:          
           break;
       }
       break;
     case AceButton::kEventReleased:          
       switch (id) {
         case BTN_HORN:
-          hornTrigger = false;
+          hornTrigger = false;                  
+          sirenTrigger = false;          
           break;
         case BTN_L_INDICATOR:
           indicatorLon = false;
@@ -2862,10 +2854,19 @@ void handleButtonEvent(AceButton* button, uint8_t eventType, uint8_t buttonState
         case BTN_START_STOP:
           //engineOn = false;
           break;
-        case BTN_LIGHTS:          
+        case BTN_LIGHTS:
+            lightsOn = false;      
+            // bool head, bool fog, bool roof, bool park
+            headLightsSub(false, false, false, false);
+            brakeLightsSub(0); // 0 brightness, if not braking            
           break;
         case BTN_HIGH_BEAM:
-          //headLightsHighBeamOn = false;
+          headLightsHighBeamOn = false;
+          headLightsSub(lightsOn, false, false, false);  
+          break;
+        case BTN_SIRENE:
+          break;
+        case BTN_HAZARD:          
           break;
       }
       break;
@@ -2883,7 +2884,13 @@ void handleButtonEvent(AceButton* button, uint8_t eventType, uint8_t buttonState
         case BTN_START_STOP:
           //engineOn = false;
           break;
-        case BTN_LIGHTS:          
+        case BTN_LIGHTS:        
+            lightsOn = false;      
+            // bool head, bool fog, bool roof, bool park
+            headLightsSub(false, false, false, false);
+            brakeLightsSub(0); // 0 brightness, if not braking                  
+          break;
+        case BTN_SIRENE:
           break;
       }
       break;
@@ -2905,23 +2912,32 @@ void handleButtonEvent(AceButton* button, uint8_t eventType, uint8_t buttonState
           else
             engineOn = true;
           break;
-        case BTN_LIGHTS:
-            if(lightsOn){
-              lightsOn = false;      
-              // bool head, bool fog, bool roof, bool park
-              headLightsSub(false, false, false, false);
-              brakeLightsSub(0); // 0 brightness, if not braking
-            }else{
-              lightsOn = true;      
-              headLightsSub(true, false, false, false);
-              brakeLightsSub(rearlightDimmedBrightness); // 50 brightness, if not braking
-            }
+        case BTN_LIGHTS:            
+            lightsOn = true;      
+            headLightsSub(true, false, false, false);
+            brakeLightsSub(rearlightDimmedBrightness); // 50 brightness, if not braking            
           break;
         case BTN_HIGH_BEAM:
-          headLightsHighBeamOn = !headLightsHighBeamOn;
-          Serial.println(headLightsHighBeamOn);
-          lightsOn = true;      
+          headLightsHighBeamOn = true;
           headLightsSub(true, false, false, false);          
+          break;
+        case BTN_SIRENE:
+          if(blueLightTrigger) {      
+            blueLightTrigger = false;
+            sirenTrigger = false;
+            sirenLatch = false;
+          } else {
+            blueLightTrigger = true;
+            sirenTrigger = true;
+            sirenLatch = true;
+          }
+          break;
+        case BTN_HAZARD:
+          if(hazard){
+            hazard = false;
+            } else {
+              hazard = true;
+            }          
           break;
       }      
       break;
@@ -3033,11 +3049,11 @@ void headLightsSub(bool head, bool fog, bool roof, bool park) {
   }
 
   // Roof lights
-  if (!roof) roofLight.off(); else roofLight.pwm(130 - crankingDim);
+  //if (!roof) roofLight.off(); else roofLight.pwm(130 - crankingDim);
 #endif // ----
 
   // Fog lights
-  if (!fog) fogLight.off(); else fogLight.pwm(200 - crankingDim);
+  //if (!fog) fogLight.off(); else fogLight.pwm(200 - crankingDim);
 }
 
 // Main LED function --------------------------------------------------------------------------------------
@@ -3052,7 +3068,7 @@ void  led() {
   static unsigned long flickerMillis;
   if (millis() - flickerMillis > 30) { // Every 30ms
     flickerMillis = millis();
-    if (engineStart) crankingDim = random(25, 55); else crankingDim = 0; // lights are dimmer and flickering while engine cranking
+    if (engineStart) crankingDim = random(10, 120); else crankingDim = 0; // lights are dimmer and flickering while engine cranking
   }
 #else
   if (engineStart) crankingDim = 50; else crankingDim = 0; // lights are dimmer while engine cranking
