@@ -253,19 +253,19 @@ void calculateSpeed();
 
 // Objects *************************************************************************************
 // Status LED objects (also used for PWM shaker motor and ESC control) -----
-statusLED headLight(true); // "false" = output not inversed
-statusLED tailLight(true);
-statusLED indicatorL(true);
-statusLED indicatorR(true);
+statusLED headLight(false); // "false" = output not inversed
+statusLED tailLight(false);
+statusLED indicatorL(false);
+statusLED indicatorR(false);
 //statusLED fogLight(true);
-statusLED reversingLight(true);
+statusLED reversingLight(false);
 //statusLED roofLight(true);
 //statusLED sideLight(true);
-statusLED beaconLight1(true);
-statusLED beaconLight2(true);
-statusLED shakerMotor(true);
-statusLED cabLight(true);
-statusLED brakeLight(true);
+statusLED beaconLight1(false);
+statusLED beaconLight2(false);
+statusLED shakerMotor(false);
+statusLED cabLight(false);
+statusLED brakeLight(false);
 
 // rcTrigger objects -----
 // Analog or 3 position switches (short / long pressed time)
@@ -2865,6 +2865,9 @@ void handleButtonEvent(AceButton* button, uint8_t eventType, uint8_t buttonState
           headLightsSub(lightsOn, false, false, false);  
           break;
         case BTN_SIRENE:
+            blueLightTrigger = false;
+            sirenTrigger = false;
+            sirenLatch = false;
           break;
         case BTN_HAZARD:          
           break;
@@ -2891,6 +2894,9 @@ void handleButtonEvent(AceButton* button, uint8_t eventType, uint8_t buttonState
             brakeLightsSub(0); // 0 brightness, if not braking                  
           break;
         case BTN_SIRENE:
+            blueLightTrigger = false;
+            sirenTrigger = false;
+            sirenLatch = false;
           break;
       }
       break;
@@ -2922,15 +2928,18 @@ void handleButtonEvent(AceButton* button, uint8_t eventType, uint8_t buttonState
           headLightsSub(true, false, false, false);          
           break;
         case BTN_SIRENE:
-          if(blueLightTrigger) {      
-            blueLightTrigger = false;
-            sirenTrigger = false;
-            sirenLatch = false;
-          } else {
             blueLightTrigger = true;
             sirenTrigger = true;
             sirenLatch = true;
-          }
+          // if(blueLightTrigger) {      
+          //   blueLightTrigger = false;
+          //   sirenTrigger = false;
+          //   sirenLatch = false;
+          // } else {
+          //   blueLightTrigger = true;
+          //   sirenTrigger = true;
+          //   sirenLatch = true;
+          // }
           break;
         case BTN_HAZARD:
           if(hazard){
