@@ -2842,8 +2842,7 @@ void handleButtonEvent(AceButton* button, uint8_t eventType, uint8_t buttonState
     case AceButton::kEventReleased:          
       switch (id) {
         case BTN_HORN:
-          hornTrigger = false;                  
-          sirenTrigger = false;          
+          hornTrigger = false;          
           break;
         case BTN_L_INDICATOR:
           indicatorLon = false;
@@ -2861,8 +2860,9 @@ void handleButtonEvent(AceButton* button, uint8_t eventType, uint8_t buttonState
             brakeLightsSub(0); // 0 brightness, if not braking            
           break;
         case BTN_HIGH_BEAM:
-          headLightsHighBeamOn = false;
-          headLightsSub(lightsOn, false, false, false);  
+          headLightsFlasherOn = false;
+          //headLightsHighBeamOn = false;
+          //headLightsSub(lightsOn, false, false, false);  
           break;
         case BTN_SIRENE:
             blueLightTrigger = false;
@@ -2924,8 +2924,9 @@ void handleButtonEvent(AceButton* button, uint8_t eventType, uint8_t buttonState
             brakeLightsSub(rearlightDimmedBrightness); // 50 brightness, if not braking            
           break;
         case BTN_HIGH_BEAM:
-          headLightsHighBeamOn = true;
-          headLightsSub(true, false, false, false);          
+          //headLightsHighBeamOn = true;
+          //headLightsSub(true, false, false, false);
+          headLightsFlasherOn = true;       
           break;
         case BTN_SIRENE:
             blueLightTrigger = true;
@@ -2942,11 +2943,7 @@ void handleButtonEvent(AceButton* button, uint8_t eventType, uint8_t buttonState
           // }
           break;
         case BTN_HAZARD:
-          if(hazard){
-            hazard = false;
-            } else {
-              hazard = true;
-            }          
+          hazard = !hazard;         
           break;
       }      
       break;
